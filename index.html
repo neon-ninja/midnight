@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Midnight Timezones</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background-color: #f0f0f0;
+        }
+
+        .container {
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            text-align: center;
+            max-width: 400px;
+            width: 100%;
+        }
+
+        h1 {
+            font-size: 24px;
+            margin-bottom: 20px;
+        }
+
+        p {
+            font-size: 18px;
+            margin-bottom: 10px;
+        }
+
+        #timezone, #last-timezone, #current-time {
+            font-size: 20px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Midnight Timezones</h1>
+        <p id="current-time">Current UTC Time: Loading...</p>
+        <p id="last-timezone">Last Midnight: Loading...</p>
+        <p id="timezone">Next Midnight: Loading...</p>
+    </div>
+
+    <!-- Include moment.js and moment-timezone -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.4/moment.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/moment-timezone/0.5.43/moment-timezone-with-data.min.js"></script>
+
+    <script>
+        // Function to get the current UTC time
+        function getCurrentUTCTime() {
+            return moment.utc().format('HH:mm:ss');
+        }
+
+        // Function to get all timezones where the time is midnight
+        function getMidnightTimezones() {
+            const timezones = moment.tz.names();
+            const currentTimeUTC = moment.utc();
+
+            let lastMidnight = null;
+            let nextMidnight = null;
+            let minTimeDiffNext = 24 * 60; // Min difference in minutes for next midnight
+            let minTimeDiffLast = 24 * 60; // Min difference in minutes for last midnight
+
+            timezones.forEach(tz => {
+                const timeInZone = currentTimeUTC.clone().tz(tz);
+                const localHours = timeInZone.hours();
+                const localMinutes = timeInZone.minutes();
+
+                const minutesSinceMidnight = localHours * 60 + localMinutes;
+                const minutesToMidnight = (24 * 60) - minutesSinceMidnight;
+
+                // Check for the next midnight
+                if (minutesToMidnight < minTimeDiffNext && minutesToMidnight > 0) {
+                    minTimeDiffNext = minutesToMidnight;
+                    nextMidnight = tz;
+                }
+
+                // Check for the last midnight
+                if (minutesSinceMidnight < minTimeDiffLast && minutesSinceMidnight > 0) {
+                    minTimeDiffLast = minutesSinceMidnight;
+                    lastMidnight = tz;
+                }
+            });
+
+            return { lastMidnight, nextMidnight };
+        }
+
+        // Function to get the UTC offset for a timezone
+        function getUTCOffset(timezone) {
+            const offsetMinutes = moment.tz(timezone).utcOffset();
+            const offsetHours = Math.floor(offsetMinutes / 60);
+            const offsetRemainder = offsetMinutes % 60;
+            const offsetSign = offsetMinutes >= 0 ? "+" : "-";
+            return `${offsetSign}${Math.abs(offsetHours).toString().padStart(2, '0')}:${Math.abs(offsetRemainder).toString().padStart(2, '0')}`;
+        }
+
+        // Function to update the current time, next and last midnight timezones
+        function updateTimezones() {
+            // Update current time
+            const currentTime = getCurrentUTCTime();
+            document.getElementById('current-time').innerText = `Current UTC Time: ${currentTime}`;
+
+            // Get next and last midnight timezones
+            const { lastMidnight, nextMidnight } = getMidnightTimezones();
+
+            if (lastMidnight) {
+                const lastOffset = getUTCOffset(lastMidnight);
+                document.getElementById('last-timezone').innerText = `Last Midnight: ${lastMidnight} (UTC ${lastOffset}) at ${moment.tz(lastMidnight).format('HH:mm')}`;
+            }
+
+            if (nextMidnight) {
+                const nextOffset = getUTCOffset(nextMidnight);
+                document.getElementById('timezone').innerText = `Next Midnight: ${nextMidnight} (UTC ${nextOffset}) at ${moment.tz(nextMidnight).format('HH:mm')}`;
+            }
+        }
+
+        // Update every minute
+        setInterval(updateTimezones, 60000);
+        updateTimezones();
+    </script>
+</body>
+</html>
